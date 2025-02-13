@@ -17,6 +17,8 @@ interface QuizResult {
 export const QuizResults: React.FC = () => {
   const [results, setResults] = useState<QuizResult[]>([])
   const [selectedQuizResults, setSelectedQuizResults] = useState<QuizResult[] | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
 
@@ -28,6 +30,8 @@ export const QuizResults: React.FC = () => {
       }
 
       try {
+        setLoading(true)
+        setError(null)
         const response = await fetch("http://localhost:3000/api/quiz-results", {
           credentials: "include",
         })
@@ -42,14 +46,29 @@ export const QuizResults: React.FC = () => {
         }
 
         const data = await response.json()
-        setResults(data.sort((a: QuizResult, b: QuizResult) => 
+        
+  
+        const validatedResults = data.map((result: any) => ({
+          id: result.id,
+          quizId: result.quizId,
+          title: result.title || "Untitled Quiz",
+          participantName: result.participantName || "Unknown Participant",
+          participantEmail: result.participantEmail || "No email provided",
+          score: result.score || 0,
+          date: result.date
+        }))
+
+        setResults(validatedResults.sort((a: QuizResult, b: QuizResult) => 
           new Date(b.date).getTime() - new Date(a.date).getTime()
         ))
       } catch (error) {
         console.error("Error fetching quiz results:", error)
+        setError("Failed to load quiz results. Please try again later.")
         if ((error as any)?.response?.status === 401) {
           navigate('/login')
         }
+      } finally {
+        setLoading(false)
       }
     }
     fetchResults()
@@ -92,9 +111,24 @@ export const QuizResults: React.FC = () => {
       ),
     }
   })
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto bg-white rounded-lg shadow p-6">
+        <div className="text-center py-12 text-gray-500">Loading results...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto bg-white rounded-lg shadow p-6">
+        <div className="text-center py-12 text-red-500">{error}</div>
+      </div>
+    )
+  }
 
   if (!isAuthenticated) {
-    return null // or a loading state
+    return null 
   }
 
   if (selectedQuizResults) {

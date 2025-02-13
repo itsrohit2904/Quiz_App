@@ -2,6 +2,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import type { Quiz } from "../../types/quiz"
+import { parseISO, isBefore, isAfter } from "date-fns"
 
 interface ParticipantInfo {
   [key: string]: string
@@ -123,7 +124,38 @@ export const TakeQuiz: React.FC = () => {
     return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`
   }
 
+  const isQuizAvailable = () => {
+    if (!quiz) return false
+    const now = new Date()
+    const startDate = parseISO(quiz.settings.startDate)
+    const endDate = parseISO(quiz.settings.endDate)
+    return isAfter(now, startDate) && isBefore(now, endDate)
+  }
+
   if (!quiz) return <div>Loading...</div>
+
+  if (!isQuizAvailable()) {
+    const now = new Date()
+    const startDate = parseISO(quiz.settings.startDate)
+    const endDate = parseISO(quiz.settings.endDate)
+
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 p-4">
+        <div className="max-w-4xl w-full bg-white rounded-xl shadow-lg p-8 text-center">
+          <h2 className="text-3xl font-bold text-gray-800 mb-4">{quiz.title}</h2>
+          {isBefore(now, startDate) ? (
+            <p className="text-xl text-blue-600">
+              This quiz is not available yet. It will start on {quiz.settings.startDate}.
+            </p>
+          ) : (
+            <p className="text-xl text-red-600">
+              This quiz is no longer available. It ended on {quiz.settings.endDate}.
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   if (submitted) {
     return (
@@ -158,104 +190,110 @@ export const TakeQuiz: React.FC = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto bg-white rounded-lg shadow p-6">
-      <h2 className="text-2xl font-semibold mb-6">{quiz.title}</h2>
-      <p className="mb-6 text-gray-600">{quiz.description}</p>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 p-4">
+      <div className="max-w-4xl w-full bg-white rounded-xl shadow-lg p-8">
+     
+        <h2 className="text-3xl font-bold text-gray-800 mb-4">{quiz.title}</h2>
+        <p className="text-lg text-gray-600 mb-6">{quiz.description}</p>
 
-      {timeRemaining !== null && (
-        <div className="mb-4 text-right">
-          <span className={`text-lg font-semibold ${timeRemaining < 60 ? "text-red-600" : "text-blue-600"}`}>
-            Time Remaining: {formatTime(timeRemaining)}
-          </span>
+        {timeRemaining !== null && (
+          <div className="mb-6 text-right">
+            <span className={`text-lg font-semibold ${timeRemaining < 60 ? "text-red-500" : "text-blue-600"}`}>
+              ⏳ Time Remaining: {formatTime(timeRemaining)}
+            </span>
+          </div>
+        )}
+
+        <div className="mb-8 p-5 bg-gray-50 border border-gray-200 rounded-lg shadow-sm">
+          <h3 className="text-xl font-semibold text-gray-700 mb-4">👤 Participant Information</h3>
+          <div className="grid grid-cols-1 gap-4">
+            {quiz.participantFields.map((field) => (
+              <div key={field.id}>
+                <label className="block text-gray-700 font-medium mb-1">{field.label}</label>
+                <input
+                  type={field.type}
+                  name={field.label.toLowerCase()}
+                  value={participantInfo[field.label.toLowerCase()] || ""}
+                  onChange={handleParticipantInfoChange}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
+                  required={field.required}
+                />
+              </div>
+            ))}
+          </div>
         </div>
-      )}
 
-      <div className="mb-8 p-4 bg-gray-50 rounded-lg">
-        <h3 className="font-semibold mb-4">Participant Information</h3>
-        <div className="space-y-4">
-          {quiz.participantFields.map((field) => (
-            <div key={field.id}>
-              <label className="block mb-1">{field.label}</label>
+     
+        {quiz.questions.map((question, index) => (
+          <div key={question.id} className="mb-6 p-5 bg-white border border-gray-200 rounded-lg shadow-sm">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">
+              {index + 1}. {question.questionText}
+            </h3>
+
+            {question.type === "multiple-choice" && (
+              <div className="space-y-3">
+                {question.options.map((option: any) => (
+                  <label
+                    key={option.id}
+                    className="flex items-center gap-2 p-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-blue-100 transition"
+                  >
+                    <input
+                      type="radio"
+                      name={`question-${question.id}`}
+                      value={option.text}
+                      checked={userAnswers[question.id] === option.text}
+                      onChange={() => handleAnswerChange(question.id, option.text)}
+                      className="accent-blue-600"
+                    />
+                    {option.text}
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {question.type === "true-false" && (
+              <div className="space-y-3">
+                {["True", "False"].map((option) => (
+                  <label
+                    key={option}
+                    className="flex items-center gap-2 p-2 bg-gray-100 rounded-lg cursor-pointer hover:bg-blue-100 transition"
+                  >
+                    <input
+                      type="radio"
+                      name={`question-${question.id}`}
+                      value={option}
+                      checked={userAnswers[question.id] === option}
+                      onChange={() => handleAnswerChange(question.id, option)}
+                      className="accent-blue-600"
+                    />
+                    {option}
+                  </label>
+                ))}
+              </div>
+            )}
+            {question.type === "short-answer" && (
               <input
-                type={field.type}
-                name={field.label.toLowerCase()}
-                value={participantInfo[field.label.toLowerCase()] || ""}
-                onChange={handleParticipantInfoChange}
-                className="w-full p-2 border rounded"
-                required={field.required}
+                type="text"
+                placeholder="Your answer..."
+                value={userAnswers[question.id] || ""}
+                onChange={(e) => handleAnswerChange(question.id, e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition"
               />
-            </div>
-          ))}
+            )}
+          </div>
+        ))}
+        <div className="mt-6 text-center">
+          <button
+            onClick={handleSubmit}
+            className="w-full py-3 bg-gradient-to-r from-blue-500 to-blue-700 text-white font-semibold rounded-lg shadow-lg hover:from-blue-600 hover:to-blue-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={
+              Object.keys(userAnswers).length !== quiz.questions.length ||
+              Object.keys(participantInfo).length !== quiz.participantFields.length
+            }
+          >
+            Submit Quiz
+          </button>
         </div>
-      </div>
-
-      {quiz.questions.map((question, index) => (
-        <div key={question.id} className="mb-6 border-b pb-6">
-          <h3 className="font-semibold mb-4">
-            Question {index + 1}: {question.questionText}
-          </h3>
-
-          {question.type === "multiple-choice" && (
-            <div className="space-y-2">
-              {question.options.map((option: any) => (
-                <div key={option.id} className="flex items-center">
-                  <input
-                    type="radio"
-                    id={`q${question.id}-${option.id}`}
-                    name={`question-${question.id}`}
-                    value={option.text}
-                    checked={userAnswers[question.id] === option.text}
-                    onChange={() => handleAnswerChange(question.id, option.text)}
-                    className="mr-2"
-                  />
-                  <label htmlFor={`q${question.id}-${option.id}`}>{option.text}</label>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {question.type === "true-false" && (
-            <div className="space-y-2">
-              {["True", "False"].map((option) => (
-                <div key={option} className="flex items-center">
-                  <input
-                    type="radio"
-                    id={`q${question.id}-${option}`}
-                    name={`question-${question.id}`}
-                    value={option}
-                    checked={userAnswers[question.id] === option}
-                    onChange={() => handleAnswerChange(question.id, option)}
-                    className="mr-2"
-                  />
-                  <label htmlFor={`q${question.id}-${option}`}>{option}</label>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {question.type === "short-answer" && (
-            <input
-              type="text"
-              placeholder="Your answer"
-              value={userAnswers[question.id] || ""}
-              onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-              className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
-            />
-          )}
-        </div>
-      ))}
-
-      <div className="mt-6">
-        <button
-          onClick={handleSubmit}
-          className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          disabled={
-            Object.keys(userAnswers).length !== quiz.questions.length ||
-            Object.keys(participantInfo).length !== quiz.participantFields.length
-          }
-        >
-          Submit Quiz
-        </button>
       </div>
     </div>
   )

@@ -1,4 +1,3 @@
-"use client"
 
 import type React from "react"
 import { useEffect, useState } from "react"
@@ -201,7 +200,6 @@ export const QuizGenerator: React.FC = () => {
       return
     }
 
-    // Validate quiz data
     if (!title.trim()) {
       alert("Please enter a quiz title")
       return

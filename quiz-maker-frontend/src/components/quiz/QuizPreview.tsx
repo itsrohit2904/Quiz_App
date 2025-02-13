@@ -57,13 +57,12 @@ export const QuizPreview: React.FC = () => {
         throw new Error(`Failed to fetch quiz: ${response.statusText}`);
       }
   
-      const data: Quiz = await response.json(); // Explicitly type `data`
+      const data: Quiz = await response.json();
   
       if (!data || !data.id || !Array.isArray(data.questions)) {
         throw new Error("Invalid quiz data received");
       }
   
-      // Ensure questions have the correct structure
       const formattedQuiz: Quiz = {
         ...data,
         settings: data.settings || {},
@@ -100,7 +99,6 @@ export const QuizPreview: React.FC = () => {
 
   const currentQuestion = quiz.questions[currentQuestionIndex];
 
-// Add validation before rendering
 const safeOptions = currentQuestion.options.map(option => 
   typeof option === 'object' && option !== null
     ? String((option as { text?: string }).text || JSON.stringify(option))

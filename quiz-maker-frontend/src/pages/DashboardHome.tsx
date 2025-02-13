@@ -57,7 +57,6 @@ export const DashboardHome: React.FC = () => {
   }) => {
     if (!selectedQuiz || !user) return;
 
-  // Construct request body with only settings if updating settings only
   const requestBody = { settings };
 
   console.log(
@@ -78,7 +77,7 @@ export const DashboardHome: React.FC = () => {
     );
 
     if (response.ok) {
-      await fetchQuizzes(); // Refresh quizzes after update
+      await fetchQuizzes(); 
       setShowSettings(false);
       alert("Settings saved successfully!");
     } else {

@@ -226,7 +226,18 @@ export const getQuizResults = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
     const result = await pool.query(
-      'SELECT qr.* FROM quiz_results qr JOIN quizzes q ON qr.quiz_id = q.id WHERE q.user_id = $1',
+      `SELECT 
+        qr.id,
+        qr.quiz_id as "quizId",
+        q.title,
+        qr.participant_name as "participantName",
+        qr.participant_email as "participantEmail",
+        qr.score,
+        qr.date
+      FROM quiz_results qr 
+      JOIN quizzes q ON qr.quiz_id = q.id 
+      WHERE q.user_id = $1
+      ORDER BY qr.date DESC`,
       [userId]
     );
     res.status(200).json(result.rows);
