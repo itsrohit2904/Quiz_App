@@ -196,58 +196,75 @@ export const QuizGenerator: React.FC = () => {
 
   const handleGenerateQuiz = async () => {
     if (!isAuthenticated) {
-      navigate("/login")
-      return
+      navigate("/login");
+      return;
     }
-
+  
+    // Validation Checks
     if (!title.trim()) {
-      alert("Please enter a quiz title")
-      return
+      alert("Please enter a quiz title");
+      return;
     }
     if (questions.some((q) => !q.questionText.trim())) {
-      alert("Please fill in all question texts")
-      return
+      alert("Please fill in all question texts");
+      return;
     }
     if (questions.some((q) => q.type !== "short-answer" && !q.correctAnswer)) {
-      alert("Please select correct answers for all questions")
-      return
+      alert("Please select correct answers for all questions");
+      return;
     }
     if (participantFields.some((f) => !f.label.trim())) {
-      alert("Please fill in all participant field labels")
-      return
+      alert("Please fill in all participant field labels");
+      return;
     }
-
-    const quizData = {
-      title,
-      description,
-      questions,
-      settings: {},
-      participantFields,
-    }
-
+  
     try {
+      let existingSettings = {};
+  
+      
       if (quizId) {
-        await axios.put(`http://localhost:3000/api/quizzes/${quizId}`, quizData, {
+        const response = await axios.get(`http://localhost:3000/api/quizzes/${quizId}`, {
           withCredentials: true,
-        })
-        alert("Quiz updated successfully!")
-      } else {
-        await axios.post("http://localhost:3000/api/quizzes", quizData, {
-          withCredentials: true,
-        })
-        alert("Quiz created successfully!")
+        });
+  
+        
+        if (response && response.data && typeof response.data === "object" && "settings" in response.data) {
+          existingSettings = response.data.settings || {};
+        }
       }
-      navigate("/dashboard")
-    } catch (error) {
-      console.error(`Error ${quizId ? "updating" : "creating"} quiz:`, error)
-      alert(`Failed to ${quizId ? "update" : "create"} quiz. Please try again.`)
+  
+      const quizData = {
+        title,
+        description,
+        questions,
+        settings: existingSettings, 
+        participantFields,
+      };
+  
+      
+      if (quizId) {
+        await axios.put(`http://localhost:3000/api/quizzes/${quizId}`, quizData, { withCredentials: true });
+        alert("Quiz updated successfully!");
+      } else {
+        await axios.post("http://localhost:3000/api/quizzes", quizData, { withCredentials: true });
+        alert("Quiz created successfully!");
+      }
+  
+      navigate("/dashboard");
+    } catch (error: any) {
+      console.error(`Error ${quizId ? "updating" : "creating"} quiz:`, error);
+  
+      const errorMessage =
+        (error.response && error.response.data && error.response.data.error) ||
+        `Failed to ${quizId ? "update" : "create"} quiz. Please try again.`;
+  
+      alert(errorMessage);
     }
-  }
-
-  if (!isAuthenticated) {
-    return null
-  }
-
+  };
+  
+  
+  if (!isAuthenticated) return null;
+  
   return (
     <div className="max-w-4xl mx-auto bg-white rounded-lg shadow p-6">
       <div className="mb-6">

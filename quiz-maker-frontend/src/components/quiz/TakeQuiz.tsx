@@ -8,6 +8,11 @@ interface ParticipantInfo {
   [key: string]: string
 }
 
+interface UserAnswer {
+  questionId: number;
+  participantAnswer: string;
+}
+
 export const TakeQuiz: React.FC = () => {
   const { quizId } = useParams<{ quizId: string }>()
   const navigate = useNavigate()
@@ -80,43 +85,53 @@ export const TakeQuiz: React.FC = () => {
   }
 
   const handleSubmit = async () => {
-    if (!quiz) return
-
-    let calculatedScore = 0
-    let correctCount = 0
-    quiz.questions.forEach((question) => {
-      const userAnswer = userAnswers[question.id]
+    if (!quiz) return;
+  
+    let calculatedScore = 0;
+    let correctCount = 0;
+    const formattedAnswers: UserAnswer[] = quiz.questions.map((question) => {
+      const userAnswer = userAnswers[question.id] || ""; 
       if (userAnswer === question.correctAnswer) {
-        calculatedScore++
-        correctCount++
+        calculatedScore++;
+        correctCount++;
       }
-    })
-
-    const finalScore = Math.round((calculatedScore / quiz.questions.length) * 100)
-    setScore(finalScore)
-    setCorrectAnswers(correctCount)
-    setSubmitted(true)
-
+      return {
+        questionId: question.id, 
+        participantAnswer: userAnswer
+      };
+    });
+  
+    const finalScore = Math.round((calculatedScore / quiz.questions.length) * 100);
+    setScore(finalScore);
+    setCorrectAnswers(correctCount);
+    setSubmitted(true);
+  
     try {
       const response = await fetch(`http://localhost:3000/api/quizzes/${quizId}/submit`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         body: JSON.stringify({
-          participantName: participantInfo.name,
-          participantEmail: participantInfo.email,
+          participantName: participantInfo.name || "Anonymous", 
+          participantEmail: participantInfo.email || "no-email@example.com",
           score: finalScore,
+          answers: formattedAnswers, 
         }),
-      })
-
+      });
+  
       if (!response.ok) {
-        throw new Error("Failed to submit quiz result")
+        throw new Error(`Failed to submit quiz result: ${response.statusText}`);
       }
+  
+      const data = await response.json();
+      console.log("Quiz submitted successfully:", data);
     } catch (error) {
-      console.error("Error submitting quiz result:", error)
+      console.error("Error submitting quiz result:", error);
     }
-  }
+  };
+  
 
   const formatTime = (seconds: number): string => {
     const minutes = Math.floor(seconds / 60)
@@ -159,32 +174,34 @@ export const TakeQuiz: React.FC = () => {
 
   if (submitted) {
     return (
-      <div className="max-w-xl mx-auto bg-white rounded-lg shadow p-8 text-center">
-        <h2 className="text-3xl font-bold mb-6 text-green-600">Quiz Completed!</h2>
-        <div className="bg-blue-50 p-6 rounded-lg mb-6">
-          <div className="mb-4 text-left">
-            <h3 className="font-semibold mb-2">Participant Information</h3>
-            {Object.entries(participantInfo).map(([key, value]) => (
-              <p key={key}>
-                {key}: {value}
-              </p>
-            ))}
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 p-4">
+        <div className="max-w-xl w-full bg-white rounded-lg shadow p-8 text-center">
+          <h2 className="text-3xl font-bold mb-6 text-green-600">Quiz Completed!</h2>
+          <div className="bg-blue-50 p-6 rounded-lg mb-6">
+            <div className="mb-4 text-left">
+              <h3 className="font-semibold mb-2">Participant Information</h3>
+              {Object.entries(participantInfo).map(([key, value]) => (
+                <p key={key} className="text-gray-700">
+                  {key.charAt(0).toUpperCase() + key.slice(1)}: {value}
+                </p>
+              ))}
+            </div>
+            <p className="text-2xl mb-4">
+              Your Score: <span className="font-bold">{score}%</span>
+            </p>
+            <p className="text-xl text-gray-700 mb-4">
+              {correctAnswers} out of {quiz.questions.length} questions correct
+            </p>
           </div>
-          <p className="text-2xl mb-4">
-            Your Score: <span className="font-bold">{score}%</span>
-          </p>
-          <p className="text-xl text-gray-700 mb-4">
-            {correctAnswers} out of {quiz.questions.length} questions correct
-          </p>
+          {quiz.settings?.allowRetake && (
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
+            >
+              Retake Quiz
+            </button>
+          )}
         </div>
-        {quiz.settings?.allowRetake && (
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-          >
-            Retake Quiz
-          </button>
-        )}
       </div>
     )
   }
@@ -192,7 +209,6 @@ export const TakeQuiz: React.FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 p-4">
       <div className="max-w-4xl w-full bg-white rounded-xl shadow-lg p-8">
-     
         <h2 className="text-3xl font-bold text-gray-800 mb-4">{quiz.title}</h2>
         <p className="text-lg text-gray-600 mb-6">{quiz.description}</p>
 
@@ -223,7 +239,6 @@ export const TakeQuiz: React.FC = () => {
           </div>
         </div>
 
-     
         {quiz.questions.map((question, index) => (
           <div key={question.id} className="mb-6 p-5 bg-white border border-gray-200 rounded-lg shadow-sm">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">
@@ -271,6 +286,7 @@ export const TakeQuiz: React.FC = () => {
                 ))}
               </div>
             )}
+
             {question.type === "short-answer" && (
               <input
                 type="text"
@@ -282,6 +298,7 @@ export const TakeQuiz: React.FC = () => {
             )}
           </div>
         ))}
+
         <div className="mt-6 text-center">
           <button
             onClick={handleSubmit}
@@ -298,4 +315,3 @@ export const TakeQuiz: React.FC = () => {
     </div>
   )
 }
-

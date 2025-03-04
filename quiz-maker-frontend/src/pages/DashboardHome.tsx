@@ -56,43 +56,49 @@ export const DashboardHome: React.FC = () => {
     endDate: string;
   }) => {
     if (!selectedQuiz || !user) return;
-
-  const requestBody = { settings };
-
-  console.log(
-    "Updating quiz settings: PUT",
-    `http://localhost:3000/api/quizzes/${selectedQuiz.id}`,
-    requestBody
-  );
-
-  try {
-    const response = await fetch(
-      `http://localhost:3000/api/quizzes/${selectedQuiz.id}`,
-      {
-        method: "PUT",
+  
+    try {
+      
+      const response = await fetch(`http://localhost:3000/api/quizzes/${selectedQuiz.id}`, {
+        method: "GET",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify(requestBody),
+      });
+  
+      if (!response.ok) {
+        throw new Error("Failed to fetch quiz data");
       }
-    );
-
-    if (response.ok) {
-      await fetchQuizzes(); 
-      setShowSettings(false);
-      alert("Settings saved successfully!");
-    } else {
-      const errorData = await response.json();
-      if (response.status === 401) {
-        navigate("/login");
+  
+      const existingQuiz = await response.json();
+      const updatedSettings = { ...existingQuiz.settings, ...settings }; 
+  
+      const updateResponse = await fetch(
+        `http://localhost:3000/api/quizzes/${selectedQuiz.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ settings: updatedSettings }),
+        }
+      );
+  
+      if (updateResponse.ok) {
+        await fetchQuizzes();
+        setShowSettings(false);
+        alert("Settings saved successfully!");
       } else {
-        alert(`Failed to save settings: ${errorData.error || "Error updating quiz"}`);
+        const errorData = await updateResponse.json();
+        if (updateResponse.status === 401) {
+          navigate("/login");
+        } else {
+          alert(`Failed to save settings: ${errorData.error || "Error updating quiz"}`);
+        }
       }
+    } catch (error) {
+      console.error("Error saving settings:", error);
+      alert("An error occurred while saving settings");
     }
-  } catch (error) {
-    console.error("Error saving settings:", error);
-    alert("An error occurred while saving settings");
-  }
-};
+  };
   
   
   const deleteQuiz = async (quizId: string) => {
